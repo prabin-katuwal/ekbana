@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\CompanyCategory;
+use App\Http\Controllers\Api\CompanyCategoryController;
+use App\Http\Controllers\Api\CompanyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,3 +20,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+
+// CompanyCategory
+Route::apiResource('category',CompanyCategoryController::class);
+//
+
+// company
+Route::apiResource('company',CompanyController::class);
+//
+
