@@ -11,7 +11,6 @@ trait UploadImageTrait {
            $image=$request->image;
            $image_new_name=time().$image->getClientOriginalName();
            $image->move($filepath,$image_new_name);
-           $image-
         }
 
         return null;

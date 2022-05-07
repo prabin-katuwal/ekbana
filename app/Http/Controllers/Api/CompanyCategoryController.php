@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CompanyCategoryResource;
+use App\Http\Resources\CompanyResource;
 use App\Models\CompanyCategory;
 use Exception;
 use Illuminate\Support\Facades\Validator;
@@ -19,21 +20,17 @@ class CompanyCategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $keyword=$request->keyword;
-        if($keyword)
-        {
-            $companycategory=CompanyCategory::where('title','like',$keyword)->get();
-            if($companycategory)
-            {
+        $keyword = $request->keyword;
+        if ($keyword) {
+            $companycategory = CompanyCategory::where('title', 'like', '%' . $keyword . '%')->get();
+            if (count($companycategory) > 0) {
                 return response()->json($companycategory);
             }
-            return response()->json(['message'=>'Record Not Found']);
-
+            return response()->json(['message' => 'No Result Found'], 200);
         }
-        $companycategories=CompanyCategory::paginate(1);
-        // return response($companycategories);
-        $companycategory=CompanyCategoryResource::collection($companycategories);
-        return response()->json($companycategory,200);
+        $companycategories = CompanyCategory::paginate(10);
+        $companycategory = CompanyCategoryResource::collection($companycategories);
+        return $companycategory;
     }
 
     /**
@@ -44,8 +41,8 @@ class CompanyCategoryController extends Controller
      */
     public function store(Request $request)
     {
-         // validation
-         $validator = Validator::make($request->all(), [
+        // validation
+        $validator = Validator::make($request->all(), [
             "title" => "required"
         ]);
         //
@@ -53,10 +50,10 @@ class CompanyCategoryController extends Controller
         if ($validator->fails()) {
             return response()->json(
                 [
-                    "status" => false,
+                    "messagestatus" => false,
                     "message" => $validator->errors()->first(),
-                    "code" => 422
-                ]
+                ],
+                422
             );
         } else {
             DB::beginTransaction();
@@ -65,9 +62,9 @@ class CompanyCategoryController extends Controller
                 $companycategory->title = $request->title;
                 $companycategory->save();
                 DB::commit();
-                return response()->json(['status'=>true,"message"=>"Data Save Successfully","code"=>200]);
+                return response()->json(['messagestatus' => true, "message" => "Data Save Successfully"], 201);
             } catch (Exception $e) {
-                return response()->json(['status' => false, 'message' => $e->getMessage()]);
+                return response()->json(['messagestatus' => false, 'message' => $e->getMessage()]);
                 DB::rollBack();
             }
         }
@@ -81,13 +78,11 @@ class CompanyCategoryController extends Controller
      */
     public function show($id)
     {
-        $companycategory=CompanyCategory::find($id);
-        if($companycategory)
-        {
-            return response()->json($companycategory);
+        $companycategory = CompanyCategory::with('companies')->find($id);
+        if ($companycategory) {
+            return new CompanyCategoryResource($companycategory);
         }
-        return response()->json(['message'=>'Record Not Found']);
-
+        return response()->json(['message' => 'Record Not Found'], 404);
     }
 
     /**
@@ -99,38 +94,34 @@ class CompanyCategoryController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $companycategory=CompanyCategory::find($id);
-        if(!empty($companycategory))
-        {
-              // validation
-          $validator = Validator::make($request->all(), [
-            "title" => "required"
-        ]);
-        //
-        if($validator->fails())
-        {
-            return response()->json(
-                [
-                    "status" => false,
-                    "message" => $validator->errors()->first(),
-                    "code" => 422
-                ]
-            );
-        }
+        $companycategory = CompanyCategory::find($id);
+        if (!empty($companycategory)) {
+            // validation
+            $validator = Validator::make($request->all(), [
+                "title" => "required"
+            ]);
+            //
+            if ($validator->fails()) {
+                return response()->json(
+                    [
+                        "messagestatus" => false,
+                        "message" => $validator->errors()->first(),
+                    ],
+                    422
+                );
+            }
             DB::beginTransaction();
-            try{
-            $companycategory->title=$request->title;
-            $companycategory->save();
-            DB::commit();
-            return response()->json($companycategory);
-            }
-            catch(Exception $e)
-            {
+            try {
+                $companycategory->title = $request->title;
+                $companycategory->save();
+                DB::commit();
+                return response()->json(["messagestatus" => true, "message" => "Data updated Successfully"], 201);
+            } catch (Exception $e) {
                 DB::rollBack();
-                return response()->json(['status'=>false,'message'=>$e->getMessage()]);
+                return response()->json(['messagestatus' => false, 'message' => $e->getMessage()], 501);
             }
         }
-        return response()->json(['message'=>'Record Not Found']);
+        return response()->json(['message' => 'Record Not Found'], 404);
     }
 
     /**
@@ -142,13 +133,11 @@ class CompanyCategoryController extends Controller
     public function destroy($id)
     {
 
-        $companycategory=CompanyCategory::find($id);
-        if($companycategory)
-        {
-
+        $companycategory = CompanyCategory::find($id);
+        if ($companycategory) {
             $companycategory->delete();
-            return response()->json(['message'=>'Data Delete Successfully','data'=>$companycategory]);
+            return response()->json(['message' => 'Data Deleted Successfully']);
         }
-        return response()->json(['message'=>'Record Not Found']);
+        return response()->json(['message' => 'Record Not Found'], 404);
     }
 }

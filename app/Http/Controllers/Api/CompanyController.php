@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CompanyResource;
 use App\Http\Traits\UploadImageTrait;
 use App\Models\Company;
 use Exception;
@@ -19,18 +20,9 @@ class CompanyController extends Controller
      */
     public function index(Request $request)
     {
-        $keyword = $request->keyword;
-        if ($keyword) {
-            $company = Company::where('title', 'like', $keyword)->get();
-            if ($company) {
-                return response()->json($company);
-            }
-            return response()->json(['message' => 'Record Not Found']);
-        }
-        $company = Company::with('companyCategory')->get();
-        // return response($companycategories);
-        // $companycategory=CompanyCategoryResource::collection($companycategories);
-        return response()->json($company, 200);
+        $company = Company::with('companyCategory')->paginate(10);
+        $companycategory=CompanyResource::collection($company);
+        return $companycategory;
     }
 
     /**
@@ -51,8 +43,8 @@ class CompanyController extends Controller
                 [
                     "status" => false,
                     "message" => $validator->errors()->first(),
-                    "code" => 422
-                ]
+                ],
+                422
             );
         } else {
             DB::beginTransaction();
@@ -75,9 +67,9 @@ class CompanyController extends Controller
                 $company->status = $request->status;
                 $company->save();
                 DB::commit();
-                return response()->json(['status' => true, "message" => "Data Save Successfully", "code" => 200]);
+                return response()->json(['messagestatus' => true, "message" => "Data Save Successfully"],201);
             } catch (Exception $e) {
-                return response()->json(['status' => false, 'message' => $e->getMessage()]);
+                return response()->json(['messagestatus' => false, 'message' => $e->getMessage()]);
                 DB::rollBack();
             }
         }
@@ -89,13 +81,13 @@ class CompanyController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request,$id)
+    public function show(Request $request, $id)
     {
         $company = Company::with('companycategory')->find($id);
         if ($company) {
-            return response()->json($company);
+            return new CompanyResource($company);
         }
-        return response()->json(['message' => 'Record Not Found']);
+        return response()->json(['message' => 'Record Not Found'],404);
     }
 
     /**
@@ -107,50 +99,53 @@ class CompanyController extends Controller
      */
     public function update(Request $request, $id)
     {
-          //    validation
-          $validator = Validator::make($request->all(), [
-            "title" => "required",
-            "status" => "required"
-        ]);
-        if ($validator->fails()) {
-            return response()->json(
-                [
-                    "status" => false,
-                    "message" => $validator->errors()->first(),
-                    "code" => 422
-                ]
-            );
-        } else {
-            DB::beginTransaction();
-            try {
-                $company =Company::find($id);
-                if ($request->has('image')) {
-                    if(file_exists($company->image))
-                    {
-                        unlink($company->image);
+
+        $company = Company::find($id);
+        if (!empty($company)) {
+            //    validation
+            $validator = Validator::make($request->all(), [
+                "title" => "required",
+                "status" => "required"
+            ]);
+            if ($validator->fails()) {
+                return response()->json(
+                    [
+                        "messagestatus" => false,
+                        "message" => $validator->errors()->first(),
+                    ],
+                    422
+                );
+            } else {
+                DB::beginTransaction();
+                try {
+                    if ($request->has('image')) {
+                        if (file_exists($company->image)) {
+                            unlink($company->image);
+                        }
+                        $image = $request->image;
+                        $image_new_name = time() . $image->getClientOriginalName();
+                        $image->move('uploads/company/', $image_new_name);
+                        $company->image = 'uploads/company/' . $image_new_name;
+                        $company->title = $request->title;
+                        $company->category_id = $request->category_id;
+                        $company->description = $request->description;
+                        $company->status = $request->status;
+                        $company->save();
                     }
-                    $image = $request->image;
-                    $image_new_name = time() . $image->getClientOriginalName();
-                    $image->move('uploads/company/', $image_new_name);
-                    $company->image = 'uploads/company/' . $image_new_name;
                     $company->title = $request->title;
                     $company->category_id = $request->category_id;
                     $company->description = $request->description;
                     $company->status = $request->status;
                     $company->save();
+                    DB::commit();
+                    return response()->json(['messagestatus' => true, "message" => "Data Updated Successfully"],201);
+                } catch (Exception $e) {
+                    return response()->json(['messagestatus' => false, 'message' => $e->getMessage()]);
+                    DB::rollBack();
                 }
-                $company->title = $request->title;
-                $company->category_id = $request->category_id;
-                $company->description = $request->description;
-                $company->status = $request->status;
-                $company->save();
-                DB::commit();
-                return response()->json(['status' => true, "message" => "Data Save Successfully", "code" => 200]);
-            } catch (Exception $e) {
-                return response()->json(['status' => false, 'message' => $e->getMessage()]);
-                DB::rollBack();
             }
         }
+        return response()->json(['message' => 'Record Not Found'],404);
     }
 
     /**
@@ -167,8 +162,8 @@ class CompanyController extends Controller
                 unlink($company->image);
             }
             $company->delete();
-            return response()->json(['message' => 'Data Delete Successfully', 'data' => $company]);
+            return response()->json(['messagestatus'=>true,'message' => 'Data Deleted Successfully']);
         }
-        return response()->json(['message' => 'Record Not Found']);
+        return response()->json(['message' => 'Record Not Found'],404);
     }
 }

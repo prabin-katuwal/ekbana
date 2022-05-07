@@ -10,4 +10,9 @@ class CompanyCategory extends Model
     protected $table="company_category";
     protected $fillable=['title'];
     use HasFactory;
+
+    public function companies()
+    {
+        return $this->hasMany(Company::class,'category_id');
+    }
 }
