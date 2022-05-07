@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+class ApiMiddleware
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $api_key=$request->header('API_KEY');
+        if($api_key=='BA673A414C3B44C98478BB5CF10A0F832574090C')
+        {
+        return $next($request);
+        }
+        else{
+            return response()->json(["message"=>'Unauthenticated'],401);
+        }
+    }
+}

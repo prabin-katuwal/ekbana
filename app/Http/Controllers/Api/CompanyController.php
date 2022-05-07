@@ -89,7 +89,7 @@ class CompanyController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Request $request,$id)
     {
         $company = Company::with('companycategory')->find($id);
         if ($company) {
@@ -107,7 +107,50 @@ class CompanyController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
+          //    validation
+          $validator = Validator::make($request->all(), [
+            "title" => "required",
+            "status" => "required"
+        ]);
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    "status" => false,
+                    "message" => $validator->errors()->first(),
+                    "code" => 422
+                ]
+            );
+        } else {
+            DB::beginTransaction();
+            try {
+                $company =Company::find($id);
+                if ($request->has('image')) {
+                    if(file_exists($company->image))
+                    {
+                        unlink($company->image);
+                    }
+                    $image = $request->image;
+                    $image_new_name = time() . $image->getClientOriginalName();
+                    $image->move('uploads/company/', $image_new_name);
+                    $company->image = 'uploads/company/' . $image_new_name;
+                    $company->title = $request->title;
+                    $company->category_id = $request->category_id;
+                    $company->description = $request->description;
+                    $company->status = $request->status;
+                    $company->save();
+                }
+                $company->title = $request->title;
+                $company->category_id = $request->category_id;
+                $company->description = $request->description;
+                $company->status = $request->status;
+                $company->save();
+                DB::commit();
+                return response()->json(['status' => true, "message" => "Data Save Successfully", "code" => 200]);
+            } catch (Exception $e) {
+                return response()->json(['status' => false, 'message' => $e->getMessage()]);
+                DB::rollBack();
+            }
+        }
     }
 
     /**
